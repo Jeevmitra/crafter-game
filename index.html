@@ -4,45 +4,119 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Crafter - Ranjeet Bithu</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f0f0f"/>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#000000"/>
   <link rel="icon" href="icon-192.png" />
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      background: #111;
-      color: #fff;
-      font-family: "Segoe UI", sans-serif;
       overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
     }
     canvas {
       display: block;
     }
     #score {
       position: absolute;
-      top: 20px;
-      left: 20px;
+      top: 15px;
+      left: 15px;
       font-size: 20px;
-      background: rgba(0,0,0,0.6);
-      padding: 8px 14px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px #00f5d4;
+      z-index: 10;
+    }
+    #restartBtn, #nameForm {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+    }
+    #restartBtn {
+      display: none;
+      font-size: 20px;
+      background: #00f5d4;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 10px;
+      color: #000;
+      box-shadow: 0 0 10px #00f5d4;
+      cursor: pointer;
+    }
+    #levelUp {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px 40px;
+      border-radius: 12px;
+      display: none;
+      z-index: 15;
+      animation: pop 1s ease-out forwards;
+    }
+    @keyframes pop {
+      0% { opacity: 0; transform: scale(0.8) translate(-50%, -50%); }
+      50% { opacity: 1; transform: scale(1.1) translate(-50%, -50%); }
+      100% { opacity: 0; transform: scale(1) translate(-50%, -50%); }
+    }
+    #nameForm {
+      display: none;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    #nameForm input {
+      font-size: 18px;
+      padding: 8px;
+      margin: 10px 0;
+      width: 200px;
+    }
+    #nameForm button {
+      font-size: 18px;
+      padding: 8px 16px;
+      background: #1dd3b0;
+      border: none;
+      color: #000;
       border-radius: 6px;
-      box-shadow: 0 0 5px #00f5d4;
     }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
   <canvas id="gameCanvas"></canvas>
+  <div id="levelUp">Level Up!</div>
+  <button id="restartBtn">🔁 Restart</button>
+  
+  <div id="nameForm">
+    <h3>Apna Naam Likho:</h3>
+    <input type="text" id="playerName" placeholder="Ranjeet Bithu" />
+    <br />
+    <button onclick="saveName()">Shuru Karo</button>
+  </div>
 
   <audio id="tapSound">
     <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3" type="audio/mp3">
+  </audio>
+  <audio id="bgMusic" loop autoplay>
+    <source src="https://assets.mixkit.co/music/preview/mixkit-ambient-synth-99.mp3" type="audio/mp3">
   </audio>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const scoreEl = document.getElementById("score");
+    const restartBtn = document.getElementById("restartBtn");
+    const tapSound = document.getElementById("tapSound");
+    const bgMusic = document.getElementById("bgMusic");
+    const levelUp = document.getElementById("levelUp");
 
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -50,39 +124,59 @@
     canvas.height = height;
 
     const blockHeight = 30;
-    let blocks = [];
-    let currentBlock = null;
-    let direction = 1;
-    let score = 0;
+    let blocks = [], currentBlock, direction, score, gameRunning = true;
+    let playerName = "";
 
-    const tapSound = document.getElementById("tapSound");
+    const bgColors = ["#111", "#14213d", "#1b1a55", "#fca311", "#000"];
 
     function createBlock(x, y, w) {
       return { x, y, width: w, height: blockHeight };
     }
 
+    function getBGColor(score) {
+      if (score >= 50) return bgColors[4];
+      if (score >= 30) return bgColors[3];
+      if (score >= 20) return bgColors[2];
+      if (score >= 10) return bgColors[1];
+      return bgColors[0];
+    }
+
     function resetGame() {
-      blocks = [createBlock(width / 2 - 75, height - blockHeight, 150)];
+      blocks = [createBlock(width/2 - 75, height - blockHeight, 150)];
       currentBlock = createBlock(0, height - 2 * blockHeight, 150);
       direction = 1;
       score = 0;
+      gameRunning = true;
       scoreEl.textContent = "Score: 0";
+      restartBtn.style.display = "none";
+      animate();
     }
 
     function drawBlock(block, color = "#00f5d4") {
       ctx.fillStyle = color;
-      ctx.shadowColor = "#00f5d4";
-      ctx.shadowBlur = 15;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
       ctx.fillRect(block.x, block.y, block.width, block.height);
       ctx.shadowBlur = 0;
     }
 
+    function flashLevel(score) {
+      if ([10, 20, 30, 50].includes(score)) {
+        levelUp.textContent = "Level " + (score / 10 + 1);
+        levelUp.style.display = "block";
+        if ("vibrate" in navigator) navigator.vibrate([100, 100]);
+        setTimeout(() => { levelUp.style.display = "none"; }, 1500);
+      }
+    }
+
     function gameOver() {
-      alert("💥 Game Over\nFinal Score: " + score);
-      resetGame();
+      gameRunning = false;
+      restartBtn.style.display = "block";
+      if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
     }
 
     function nextBlock() {
+      if (!gameRunning) return;
       tapSound.play();
       let last = blocks[blocks.length - 1];
       let overlap = Math.min(currentBlock.x + currentBlock.width, last.x + last.width) -
@@ -100,20 +194,22 @@
       currentBlock = createBlock(0, currentBlock.y - blockHeight, currentBlock.width);
       score++;
       scoreEl.textContent = "Score: " + score;
+      flashLevel(score);
     }
 
-    function update() {
+    function animate() {
+      if (!gameRunning) return;
+      canvas.style.background = getBGColor(score);
       ctx.clearRect(0, 0, width, height);
+
       for (let block of blocks) drawBlock(block, "#1dd3b0");
 
       if (currentBlock) {
         currentBlock.x += 5 * direction;
-        if (currentBlock.x + currentBlock.width > width || currentBlock.x < 0) {
-          direction *= -1;
-        }
+        if (currentBlock.x + currentBlock.width > width || currentBlock.x < 0) direction *= -1;
         drawBlock(currentBlock);
       }
-      requestAnimationFrame(update);
+      requestAnimationFrame(animate);
     }
 
     window.addEventListener("click", nextBlock);
@@ -126,8 +222,21 @@
       canvas.height = height;
     });
 
-    resetGame();
-    update();
+    restartBtn.addEventListener("click", () => resetGame());
+
+    function saveName() {
+      const nameInput = document.getElementById("playerName");
+      playerName = nameInput.value.trim() || "Player";
+      document.getElementById("nameForm").style.display = "none";
+      resetGame();
+    }
+
+    // Start music once user interacts
+    window.addEventListener("click", () => bgMusic.play());
+    window.addEventListener("touchstart", () => bgMusic.play());
+
+    // Ask player name on load
+    document.getElementById("nameForm").style.display = "block";
   </script>
 
   <script>
