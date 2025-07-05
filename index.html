@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Crafter - Ranjeet Bithu</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f0f0f"/>
+  <link rel="icon" href="icon-192.png" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #fff;
+      font-family: "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    #score {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 20px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 14px;
+      border-radius: 6px;
+      box-shadow: 0 0 5px #00f5d4;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Score: 0</div>
+  <canvas id="gameCanvas"></canvas>
+
+  <audio id="tapSound">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3" type="audio/mp3">
+  </audio>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const blockHeight = 30;
+    let blocks = [];
+    let currentBlock = null;
+    let direction = 1;
+    let score = 0;
+
+    const tapSound = document.getElementById("tapSound");
+
+    function createBlock(x, y, w) {
+      return { x, y, width: w, height: blockHeight };
+    }
+
+    function resetGame() {
+      blocks = [createBlock(width / 2 - 75, height - blockHeight, 150)];
+      currentBlock = createBlock(0, height - 2 * blockHeight, 150);
+      direction = 1;
+      score = 0;
+      scoreEl.textContent = "Score: 0";
+    }
+
+    function drawBlock(block, color = "#00f5d4") {
+      ctx.fillStyle = color;
+      ctx.shadowColor = "#00f5d4";
+      ctx.shadowBlur = 15;
+      ctx.fillRect(block.x, block.y, block.width, block.height);
+      ctx.shadowBlur = 0;
+    }
+
+    function gameOver() {
+      alert("💥 Game Over\nFinal Score: " + score);
+      resetGame();
+    }
+
+    function nextBlock() {
+      tapSound.play();
+      let last = blocks[blocks.length - 1];
+      let overlap = Math.min(currentBlock.x + currentBlock.width, last.x + last.width) -
+                    Math.max(currentBlock.x, last.x);
+
+      if (overlap <= 0) {
+        gameOver();
+        return;
+      }
+
+      currentBlock.width = overlap;
+      currentBlock.x = Math.max(currentBlock.x, last.x);
+      currentBlock.y = last.y - blockHeight;
+      blocks.push(currentBlock);
+      currentBlock = createBlock(0, currentBlock.y - blockHeight, currentBlock.width);
+      score++;
+      scoreEl.textContent = "Score: " + score;
+    }
+
+    function update() {
+      ctx.clearRect(0, 0, width, height);
+      for (let block of blocks) drawBlock(block, "#1dd3b0");
+
+      if (currentBlock) {
+        currentBlock.x += 5 * direction;
+        if (currentBlock.x + currentBlock.width > width || currentBlock.x < 0) {
+          direction *= -1;
+        }
+        drawBlock(currentBlock);
+      }
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener("click", nextBlock);
+    window.addEventListener("touchstart", nextBlock);
+
+    window.addEventListener("resize", () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    });
+
+    resetGame();
+    update();
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>
